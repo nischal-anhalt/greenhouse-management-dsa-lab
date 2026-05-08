@@ -1,0 +1,26 @@
+# Git repository
+.git
+.gitignore
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables / Local secrets
+.env
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+
+# IDEs and OS specific files
+.vscode/
+.idea/
+.DS_Store
