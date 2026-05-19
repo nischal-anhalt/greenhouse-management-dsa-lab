@@ -52,7 +52,7 @@ To verify that the API is functioning correctly, you can run the included test_a
 
 1. Ensure the Docker container is running (see steps above).
 
-2. Install the required requests package if you haven't already:
+2. Install the required requests package:
 
     `pip install requests`
 
@@ -75,3 +75,115 @@ PUT requests updating the Greenhouse.
 DELETE requests cleaning up the created data.
 
 The corresponding HTTP status codes (e.g., 201 Created, 200 OK, 204 No Content) and JSON payloads.
+
+```bash
+==================================================
+ GREENHOUSE ENDPOINTS 
+==================================================
+
+> [POST] http://localhost:8080/greenhouses
+Payload: {
+  "name": "Tropical Zone"
+}
+Status Code: 201
+Response: {
+  "id": 1,
+  "name": "Tropical Zone"
+}
+
+> [GET] http://localhost:8080/greenhouses
+Status Code: 200
+Response: [
+  {
+    "id": 1,
+    "name": "Tropical Zone"
+  }
+]
+
+> [GET] http://localhost:8080/greenhouses/1
+Status Code: 200
+Response: {
+  "id": 1,
+  "name": "Tropical Zone"
+}
+
+> [PUT] http://localhost:8080/greenhouses/1
+Payload: {
+  "name": "Tropical Zone Updated"
+}
+Status Code: 200
+Response: {
+  "id": 1,
+  "name": "Tropical Zone Updated"
+}
+
+==================================================
+ PLANT ENDPOINTS 
+==================================================
+
+> [POST] http://localhost:8080/plants
+Payload: {
+  "name": "Monstera Deliciosa",
+  "species": "Monstera",
+  "greenhouse_id": 1
+}
+Status Code: 201
+Response: {
+  "greenhouse_id": 1,
+  "id": 1,
+  "name": "Monstera Deliciosa",
+  "species": "Monstera"
+}
+
+> [GET] http://localhost:8080/plants
+Status Code: 200
+Response: [
+  {
+    "greenhouse_id": 1,
+    "id": 1,
+    "name": "Monstera Deliciosa",
+    "species": "Monstera"
+  }
+]
+
+> [GET] http://localhost:8080/plants/1
+Status Code: 200
+Response: {
+  "greenhouse_id": 1,
+  "id": 1,
+  "name": "Monstera Deliciosa",
+  "species": "Monstera"
+}
+
+==================================================
+ CLEANUP / DELETE ENDPOINTS 
+==================================================
+
+> [DELETE] http://localhost:8080/plants/1
+Status Code: 204
+Response: 
+
+> [GET] http://localhost:8080/plants/1
+Status Code: 404
+Response: {
+  "error": "Plant not found"
+}
+
+> [DELETE] http://localhost:8080/greenhouses/1
+Status Code: 204
+Response: 
+
+> [GET] http://localhost:8080/greenhouses/1
+Status Code: 404
+Response: {
+  "error": "Greenhouse not found"
+}
+```
+
+## Why port mapping -p 8085:5000
+
+When a user sends a request to  **localhost:8085** , the traffic first reaches the host machine, not the Flask process directly. The  -p 8085:5000  mapping tells Docker to listen on port 8085 on the host and forward that traffic into port 5000 inside the container, which is where the Flask app is exposed in this image.
+
+Port mapping is required because the container has its own network namespace, so port 5000 inside the container is separate from port 5000 or any other port on the host. Without  -p 8085:5000 , the app may still be running inside the container, but you would not be able to reach it from your browser using  localhost:8085 .
+
+Using 8085 on the host is simply a convention, often made to avoid conflicts with other services already using common ports. Docker then bridges that external host port to the container’s internal Flask port, allowing the client and the application to communicate even though they live in different network contexts.
