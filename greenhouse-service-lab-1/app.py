@@ -21,6 +21,7 @@ def create_greenhouse():
     gh = {
         'id': gh_id_counter,
         'name': data.get('name'),
+        'location': data.get('location')
     }
     greenhouses[gh_id_counter] = gh
     gh_id_counter += 1
@@ -45,6 +46,7 @@ def update_greenhouse(gh_id):
     
     data = request.get_json()
     gh['name'] = data.get('name', gh['name'])
+    gh['location'] = data.get('location', gh['location'])
     return jsonify(gh), 200
 
 @app.route('/greenhouses/<int:gh_id>', methods=['DELETE'])
@@ -67,6 +69,7 @@ def create_plant():
         'id': pl_id_counter,
         'name': data.get('name'),
         'species': data.get('species'),
+        'health_score': data.get('health_score'),
         'greenhouse_id': data.get('greenhouse_id')
     }
     plants[pl_id_counter] = plant

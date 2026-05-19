@@ -43,7 +43,7 @@ def run_tests():
     print_separator("GREENHOUSE ENDPOINTS")
     
     # 1. Create a Greenhouse
-    gh_payload = {"name": "Tropical Zone"}
+    gh_payload = {"name": "Tropical Zone", "location": "Zone-1-east"}
     res = test_endpoint("POST", "/greenhouses", gh_payload)
     gh_id = res.json().get("id")
 
@@ -54,13 +54,13 @@ def run_tests():
     test_endpoint("GET", f"/greenhouses/{gh_id}")
 
     # 4. Update Greenhouse
-    update_payload = {"name": "Tropical Zone Updated"}
+    update_payload = {"name": "Tropical Zone Updated", "location": "Zone-2-west"}
     test_endpoint("PUT", f"/greenhouses/{gh_id}", update_payload)
 
     print_separator("PLANT ENDPOINTS")
     
     # 5. Create a Plant (linking it to the greenhouse we just made)
-    pl_payload = {"name": "Monstera Deliciosa", "species": "Monstera", "greenhouse_id": gh_id}
+    pl_payload = {"name": "Monstera Deliciosa", "species": "Monstera","health_score": "5/10", "greenhouse_id": gh_id}
     res = test_endpoint("POST", "/plants", pl_payload)
     pl_id = res.json().get("id")
 
