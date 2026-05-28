@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package dsa.items;
+
+// Represents a Smart Greenhouse Bed or Plant
+message Item {
+  int32 id = 1;
+  string name = 2;
+  string status = 3;
+  string location = 4; // Adapted from 'category' to fit the Greenhouse domain
+}
+
+// Unary request
+message ItemIdRequest {
+  int32 id = 1;
+}
+
+// Server-streaming request
+message ListItemsRequest {}
+
+// Client-streaming request
+message CreateItemRequest {
+  string name = 1;
+  string status = 2;
+  string location = 3; // Adapted from 'category'
+}
+
+// Client-streaming response
+message AddItemsResult {
+  int32 created_count = 1;
+  int32 total_count = 2;
+}
+
+// Bidirectional-streaming message
+message ChatMessage {
+  string sender = 1;
+  string text = 2;
+  int32 sequence = 3;
+}
+
+// The gRPC Service Definition
+service ItemService {
+  // Unary: 1 request -> 1 response
+  rpc GetItemById(ItemIdRequest) returns (Item);
+  
+  // Server Streaming: 1 request -> many responses
+  rpc ListItems(ListItemsRequest) returns (stream Item);
+  
+  // Client Streaming: many requests -> 1 response
+  rpc AddItems(stream CreateItemRequest) returns (AddItemsResult);
+  
+  // Bidirectional Streaming: many requests <-> many responses
+  rpc ChatAboutItems(stream ChatMessage) returns (stream ChatMessage);
+}
