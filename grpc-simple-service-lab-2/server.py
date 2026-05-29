@@ -3,6 +3,8 @@ import os
 from concurrent import futures
 
 import grpc
+from pymongo import ASCENDING, DESCENDING, MongoClient
+
 import items_pb2
 import items_pb2_grpc
 
@@ -11,24 +13,40 @@ logging.basicConfig(level=logging.INFO)
 SERVICE_NAME = os.getenv("SERVICE_NAME", "greenhouse-grpc-service")
 GRPC_PORT = int(os.getenv("GRPC_PORT", "50051"))
 
-# Initial in-memory data 
-items = {
-    1: {"id": 1, "name": "Tomato Bed A", "status": "healthy", "location": "Zone 1"},
-    2: {"id": 2, "name": "Monstera Deliciosa", "status": "needs_water", "location": "Zone 2"},
-}
-next_id = 3
+# MongoDB Configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB = os.getenv("MONGO_DB", "itemsdb")
+MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "items")
 
-def to_proto(item):
-    """Convert one Python dictionary into a Protobuf Item message."""
+# Connect to MongoDB
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
+db = client[MONGO_DB]
+collection = db[MONGO_COLLECTION]
+
+# Ensure our custom 'id' field is indexed and unique
+collection.create_index([("id", ASCENDING)], unique=True)
+
+def check_mongo_connection():
+    client.admin.command("ping")
+    logging.info("Connected to MongoDB at %s", MONGO_URI)
+
+def next_numeric_id():
+    # Find the highest ID currently in the database to auto-increment
+    latest = collection.find_one({}, sort=[("id", DESCENDING)])
+    if latest is None:
+        return 1
+    return int(latest["id"]) + 1
+
+def document_to_item(doc):
+    """Converts a MongoDB document into our gRPC Protobuf Item."""
     return items_pb2.Item(
-        id=item["id"],
-        name=item["name"],
-        status=item["status"],
-        location=item["location"],
+        id=int(doc["id"]),
+        name=doc["name"],
+        status=doc["status"],
+        location=doc["location"] # Smart Greenhouse domain field
     )
 
 def validate_create_request(request):
-    """Return None if valid; otherwise return an error message."""
     if not request.name.strip():
         return "Field 'name' is required."
     if not request.status.strip():
@@ -40,71 +58,48 @@ def validate_create_request(request):
 class ItemService(items_pb2_grpc.ItemServiceServicer):
 
     def GetItemById(self, request, context):
-        # Worked unary example: one request -> one response.
-        logging.info("GetItemById id=%s", request.id)
-        item = items.get(request.id)
-        if item is None:
-            # Proper use of gRPC status codes for missing items
-            context.abort(
-                grpc.StatusCode.NOT_FOUND,
-                f"Item with id {request.id} does not exist.",
-            )
-        return to_proto(item)
+        doc = collection.find_one({"id": request.id}, {"_id": False})
+        if doc is None:
+            context.abort(grpc.StatusCode.NOT_FOUND, f"Item {request.id} not found")
+        return document_to_item(doc)
 
     def ListItems(self, request, context):
-        # Worked server-streaming example: one request -> many responses.
-        logging.info("ListItems")
-        for item in items.values():
-            yield to_proto(item)
+        for doc in collection.find({}, {"_id": False}).sort("id", ASCENDING):
+            yield document_to_item(doc)
 
     def AddItems(self, request_iterator, context):
-        # Client-streaming: many requests -> one response.
-        global next_id
-        logging.info("AddItems stream started")
         created_count = 0
+        for request in request_iterator:
+            problem = validate_create_request(request)
+            if problem is not None:
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, problem)
 
-        # Read all CreateItemRequest messages from the stream
-        for create_req in request_iterator:
-            
-            # Validate input
-            error = validate_create_request(create_req)
-            if error:
-                context.abort(grpc.StatusCode.INVALID_ARGUMENT, error)
-
-            # Store the new item
-            item = {
-                "id": next_id,
-                "name": create_req.name.strip(),
-                "status": create_req.status.strip(),
-                "location": create_req.location.strip(),
+            document = {
+                "id": next_numeric_id(),
+                "name": request.name.strip(),
+                "status": request.status.strip(),
+                "location": request.location.strip(), # Smart Greenhouse domain field
             }
-            items[next_id] = item
-            logging.info("Created plant/bed: %s", item["name"])
-            
-            next_id += 1
+            collection.insert_one(document)
             created_count += 1
+            logging.info("Persisted plant/bed to DB: %s", document["name"])
 
-        # Return the summary once the client finishes sending
+        total_count = collection.count_documents({})
         return items_pb2.AddItemsResult(
             created_count=created_count,
-            total_count=len(items)
+            total_count=total_count,
         )
 
     def ChatAboutItems(self, request_iterator, context):
-        # Bidirectional-streaming: many requests <-> many responses.
-        logging.info("ChatAboutItems stream started")
-        
-        # For every incoming message, yield a response immediately
-        for chat_msg in request_iterator:
-            logging.info("Received chat from %s: %s", chat_msg.sender, chat_msg.text)
-            
+        for message in request_iterator:
             yield items_pb2.ChatMessage(
                 sender=SERVICE_NAME,
-                text=f"Server echoing: {chat_msg.text}",
-                sequence=chat_msg.sequence
+                text=f"received: {message.text}",
+                sequence=message.sequence,
             )
 
 def serve():
+    check_mongo_connection()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     items_pb2_grpc.add_ItemServiceServicer_to_server(ItemService(), server)
     server.add_insecure_port(f"[::]:{GRPC_PORT}")
