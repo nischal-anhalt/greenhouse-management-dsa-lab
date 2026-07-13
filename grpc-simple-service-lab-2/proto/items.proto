@@ -4,7 +4,7 @@ package dsa.items;
 
 // Represents a Smart Greenhouse Bed or Plant
 message Item {
-  int32 id = 1;
+  string id = 1;
   string name = 2;
   string status = 3;
   string location = 4; // Adapted from 'category' to fit the Greenhouse domain
@@ -12,7 +12,7 @@ message Item {
 
 // Unary request
 message ItemIdRequest {
-  int32 id = 1;
+  string id = 1;
 }
 
 // Server-streaming request
@@ -23,6 +23,19 @@ message CreateItemRequest {
   string name = 1;
   string status = 2;
   string location = 3; // Adapted from 'category'
+}
+
+// Request to update an existing item
+message UpdateItemRequest {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string location = 4;
+}
+
+// Response for a successful deletion
+message DeleteItemResponse {
+  bool success = 1;
 }
 
 // Client-streaming response
@@ -42,13 +55,19 @@ message ChatMessage {
 service ItemService {
   // Unary: 1 request -> 1 response
   rpc GetItemById(ItemIdRequest) returns (Item);
-  
+
   // Server Streaming: 1 request -> many responses
   rpc ListItems(ListItemsRequest) returns (stream Item);
-  
+
   // Client Streaming: many requests -> 1 response
   rpc AddItems(stream CreateItemRequest) returns (AddItemsResult);
-  
+
+  // Update an existing item
+  rpc UpdateItem(UpdateItemRequest) returns (Item);
+
+  // Delete an item
+  rpc DeleteItem(ItemIdRequest) returns (DeleteItemResponse);
+
   // Bidirectional Streaming: many requests <-> many responses
   rpc ChatAboutItems(stream ChatMessage) returns (stream ChatMessage);
 }

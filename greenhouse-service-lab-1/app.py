@@ -1,99 +1,112 @@
-from flask import Flask, request, jsonify
+import os
+import logging
+import grpc
+from flask import Flask, jsonify, request
+from pybreaker import CircuitBreakerError
+
+import items_pb2
+import items_pb2_grpc
+from reliability import BackendUnavailable, protected_call
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
-# In-memory databases
-greenhouses = {}
-plants = {}
+# Connect to the gRPC service using the Docker Compose service name
+GRPC_TARGET = os.getenv("GRPC_TARGET", "grpc-service:50051")
+channel = grpc.insecure_channel(GRPC_TARGET)
+stub = items_pb2_grpc.ItemServiceStub(channel)
 
-# ID trackers
-gh_id_counter = 1
-pl_id_counter = 1
+def error_response(code, message, status):
+    return jsonify({"error": {"code": code, "message": message}}), status
 
-# ==========================================
-# GREENHOUSE CRUD ENDPOINTS
-# ==========================================
-
-@app.route('/greenhouses', methods=['POST'])
-def create_greenhouse():
-    global gh_id_counter
-    data = request.get_json()
-    gh = {
-        'id': gh_id_counter,
-        'name': data.get('name'),
-        'location': data.get('location')
-    }
-    greenhouses[gh_id_counter] = gh
-    gh_id_counter += 1
-    return jsonify(gh), 201
-
-@app.route('/greenhouses', methods=['GET'])
-def list_greenhouses():
-    return jsonify(list(greenhouses.values())), 200
-
-@app.route('/greenhouses/<int:gh_id>', methods=['GET'])
-def get_greenhouse(gh_id):
-    gh = greenhouses.get(gh_id)
-    if gh:
-        return jsonify(gh), 200
-    return jsonify({'error': 'Greenhouse not found'}), 404
-
-@app.route('/greenhouses/<int:gh_id>', methods=['PUT'])
-def update_greenhouse(gh_id):
-    gh = greenhouses.get(gh_id)
-    if not gh:
-        return jsonify({'error': 'Greenhouse not found'}), 404
+@app.route('/items', methods=['POST'])
+def create_item():
+    data = request.get_json(silent=True)
+    if not data or not isinstance(data, dict):
+        return error_response("invalid_json", "Request body must be valid JSON.", 400)
     
-    data = request.get_json()
-    gh['name'] = data.get('name', gh['name'])
-    gh['location'] = data.get('location', gh['location'])
-    return jsonify(gh), 200
+    # Basic validation
+    if not data.get("name") or not data.get("status") or not data.get("location"):
+        return error_response("validation_error", "Missing name, status, or location.", 400)
 
-@app.route('/greenhouses/<int:gh_id>', methods=['DELETE'])
-def delete_greenhouse(gh_id):
-    if gh_id in greenhouses:
-        del greenhouses[gh_id]
-        return '', 204
-    return jsonify({'error': 'Greenhouse not found'}), 404
+    # 1. Define the gRPC operation
+    def grpc_operation():
+        request_message = items_pb2.CreateItemRequest(
+            name=data["name"].strip(),
+            status=data["status"].strip(),
+            location=data["location"].strip()
+        )
+        # Call the Client-Streaming AddItems method
+        return stub.AddItems(iter([request_message]), timeout=2.0)
+    
+    # 2. Execute the call through the Circuit Breaker
+    try:
+        result = protected_call(grpc_operation)
+    except CircuitBreakerError:
+        return error_response("backend_unavailable", "gRPC service is temporarily unavailable (Circuit Open).", 503)
+    except BackendUnavailable:
+        return error_response("backend_failure", "gRPC service did not respond successfully after retries.", 502)
+
+    # 3. Return success
+    return jsonify({
+        "message": "created through gRPC",
+        "created_count": result.created_count,
+        "total_count": result.total_count,
+    }), 201
+
+@app.route('/items/<string:item_id>', methods=['PUT'])
+def update_item(item_id):
+    data = request.get_json(silent=True)
+    if not data or not data.get("name") or not data.get("status") or not data.get("location"):
+        return error_response("validation_error", "Missing name, status, or location.", 400)
+
+    def grpc_operation():
+        req = items_pb2.UpdateItemRequest(
+            id=item_id,
+            name=data["name"].strip(),
+            status=data["status"].strip(),
+            location=data["location"].strip()
+        )
+        return stub.UpdateItem(req, timeout=2.0)
+
+    try:
+        result = protected_call(grpc_operation)
+    except CircuitBreakerError:
+        return error_response("backend_unavailable", "gRPC service is temporarily unavailable.", 503)
+    except BackendUnavailable:
+        return error_response("backend_failure", "gRPC service did not respond successfully.", 502)
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.NOT_FOUND:
+            return error_response("not_found", f"Item {item_id} not found.", 404)
+        return error_response("internal_error", str(e), 500)
+
+    return jsonify({
+        "id": result.id,
+        "name": result.name,
+        "status": result.status,
+        "location": result.location
+    }), 200
 
 
-# ==========================================
-# PLANT CRUD ENDPOINTS
-# ==========================================
+@app.route('/items/<string:item_id>', methods=['DELETE'])
+def delete_item(item_id):
+    def grpc_operation():
+        req = items_pb2.ItemIdRequest(id=item_id)
+        return stub.DeleteItem(req, timeout=2.0)
 
-@app.route('/plants', methods=['POST'])
-def create_plant():
-    global pl_id_counter
-    data = request.get_json()
-    plant = {
-        'id': pl_id_counter,
-        'name': data.get('name'),
-        'species': data.get('species'),
-        'health_score': data.get('health_score'),
-        'greenhouse_id': data.get('greenhouse_id')
-    }
-    plants[pl_id_counter] = plant
-    pl_id_counter += 1
-    return jsonify(plant), 201
+    try:
+        protected_call(grpc_operation)
+    except CircuitBreakerError:
+        return error_response("backend_unavailable", "gRPC service is temporarily unavailable.", 503)
+    except BackendUnavailable:
+        return error_response("backend_failure", "gRPC service did not respond successfully.", 502)
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.NOT_FOUND:
+            return error_response("not_found", f"Item {item_id} not found.", 404)
+        return error_response("internal_error", str(e), 500)
 
-@app.route('/plants', methods=['GET'])
-def list_plants():
-    return jsonify(list(plants.values())), 200
-
-@app.route('/plants/<int:pl_id>', methods=['GET'])
-def get_plant(pl_id):
-    plant = plants.get(pl_id)
-    if plant:
-        return jsonify(plant), 200
-    return jsonify({'error': 'Plant not found'}), 404
-
-@app.route('/plants/<int:pl_id>', methods=['DELETE'])
-def delete_plant(pl_id):
-    if pl_id in plants:
-        del plants[pl_id]
-        return '', 204
-    return jsonify({'error': 'Plant not found'}), 404
+    # Return 204 No Content for a successful deletion
+    return '', 204
 
 if __name__ == '__main__':
-    # Listen on all network interfaces so Docker can expose it
     app.run(host='0.0.0.0', port=5000)

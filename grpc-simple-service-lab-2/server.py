@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 from concurrent import futures
 
 import grpc
@@ -30,17 +31,11 @@ def check_mongo_connection():
     client.admin.command("ping")
     logging.info("Connected to MongoDB at %s", MONGO_URI)
 
-def next_numeric_id():
-    # Find the highest ID currently in the database to auto-increment
-    latest = collection.find_one({}, sort=[("id", DESCENDING)])
-    if latest is None:
-        return 1
-    return int(latest["id"]) + 1
 
 def document_to_item(doc):
     """Converts a MongoDB document into our gRPC Protobuf Item."""
     return items_pb2.Item(
-        id=int(doc["id"]),
+        id=doc["id"],
         name=doc["name"],
         status=doc["status"],
         location=doc["location"] # Smart Greenhouse domain field
@@ -75,7 +70,7 @@ class ItemService(items_pb2_grpc.ItemServiceServicer):
                 context.abort(grpc.StatusCode.INVALID_ARGUMENT, problem)
 
             document = {
-                "id": next_numeric_id(),
+                "id": str(uuid.uuid4()),
                 "name": request.name.strip(),
                 "status": request.status.strip(),
                 "location": request.location.strip(), # Smart Greenhouse domain field
@@ -89,6 +84,40 @@ class ItemService(items_pb2_grpc.ItemServiceServicer):
             created_count=created_count,
             total_count=total_count,
         )
+    
+    def UpdateItem(self, request, context):
+        # Validate the inputs
+        if not request.name.strip() or not request.status.strip() or not request.location.strip():
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Name, status, and location are required.")
+            
+        # MongoDB find_one_and_update
+        from pymongo import ReturnDocument
+        updated_doc = collection.find_one_and_update(
+            {"id": request.id},
+            {"$set": {
+                "name": request.name.strip(),
+                "status": request.status.strip(),
+                "location": request.location.strip()
+            }},
+            return_document=ReturnDocument.AFTER, # Returns the newly updated document
+            projection={"_id": False}
+        )
+        
+        if updated_doc is None:
+            context.abort(grpc.StatusCode.NOT_FOUND, f"Item {request.id} not found.")
+            
+        logging.info("Updated plant/bed: %s", updated_doc["name"])
+        return document_to_item(updated_doc)
+
+    def DeleteItem(self, request, context):
+        # MongoDB delete_one
+        result = collection.delete_one({"id": request.id})
+        
+        if result.deleted_count == 0:
+            context.abort(grpc.StatusCode.NOT_FOUND, f"Item {request.id} not found.")
+            
+        logging.info("Deleted plant/bed with ID: %s", request.id)
+        return items_pb2.DeleteItemResponse(success=True)
 
     def ChatAboutItems(self, request_iterator, context):
         for message in request_iterator:

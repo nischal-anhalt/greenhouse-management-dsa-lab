@@ -50,6 +50,16 @@ class ItemServiceStub(object):
                 request_serializer=items__pb2.CreateItemRequest.SerializeToString,
                 response_deserializer=items__pb2.AddItemsResult.FromString,
                 _registered_method=True)
+        self.UpdateItem = channel.unary_unary(
+                '/dsa.items.ItemService/UpdateItem',
+                request_serializer=items__pb2.UpdateItemRequest.SerializeToString,
+                response_deserializer=items__pb2.Item.FromString,
+                _registered_method=True)
+        self.DeleteItem = channel.unary_unary(
+                '/dsa.items.ItemService/DeleteItem',
+                request_serializer=items__pb2.ItemIdRequest.SerializeToString,
+                response_deserializer=items__pb2.DeleteItemResponse.FromString,
+                _registered_method=True)
         self.ChatAboutItems = channel.stream_stream(
                 '/dsa.items.ItemService/ChatAboutItems',
                 request_serializer=items__pb2.ChatMessage.SerializeToString,
@@ -82,6 +92,20 @@ class ItemServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UpdateItem(self, request, context):
+        """Update an existing item
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteItem(self, request, context):
+        """Delete an item
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ChatAboutItems(self, request_iterator, context):
         """Bidirectional Streaming: many requests <-> many responses
         """
@@ -106,6 +130,16 @@ def add_ItemServiceServicer_to_server(servicer, server):
                     servicer.AddItems,
                     request_deserializer=items__pb2.CreateItemRequest.FromString,
                     response_serializer=items__pb2.AddItemsResult.SerializeToString,
+            ),
+            'UpdateItem': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateItem,
+                    request_deserializer=items__pb2.UpdateItemRequest.FromString,
+                    response_serializer=items__pb2.Item.SerializeToString,
+            ),
+            'DeleteItem': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteItem,
+                    request_deserializer=items__pb2.ItemIdRequest.FromString,
+                    response_serializer=items__pb2.DeleteItemResponse.SerializeToString,
             ),
             'ChatAboutItems': grpc.stream_stream_rpc_method_handler(
                     servicer.ChatAboutItems,
@@ -195,6 +229,60 @@ class ItemService(object):
             '/dsa.items.ItemService/AddItems',
             items__pb2.CreateItemRequest.SerializeToString,
             items__pb2.AddItemsResult.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateItem(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/dsa.items.ItemService/UpdateItem',
+            items__pb2.UpdateItemRequest.SerializeToString,
+            items__pb2.Item.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteItem(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/dsa.items.ItemService/DeleteItem',
+            items__pb2.ItemIdRequest.SerializeToString,
+            items__pb2.DeleteItemResponse.FromString,
             options,
             channel_credentials,
             insecure,

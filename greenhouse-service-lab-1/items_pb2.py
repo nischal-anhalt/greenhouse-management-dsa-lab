@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bitems.proto\x12\tdsa.items\"B\n\x04Item\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0e\n\x06status\x18\x03 \x01(\t\x12\x10\n\x08location\x18\x04 \x01(\t\"\x1b\n\rItemIdRequest\x12\n\n\x02id\x18\x01 \x01(\x05\"\x12\n\x10ListItemsRequest\"C\n\x11\x43reateItemRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\"<\n\x0e\x41\x64\x64ItemsResult\x12\x15\n\rcreated_count\x18\x01 \x01(\x05\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05\"=\n\x0b\x43hatMessage\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\x12\x10\n\x08sequence\x18\x03 \x01(\x05\x32\x91\x02\n\x0bItemService\x12\x38\n\x0bGetItemById\x12\x18.dsa.items.ItemIdRequest\x1a\x0f.dsa.items.Item\x12;\n\tListItems\x12\x1b.dsa.items.ListItemsRequest\x1a\x0f.dsa.items.Item0\x01\x12\x45\n\x08\x41\x64\x64Items\x12\x1c.dsa.items.CreateItemRequest\x1a\x19.dsa.items.AddItemsResult(\x01\x12\x44\n\x0e\x43hatAboutItems\x12\x16.dsa.items.ChatMessage\x1a\x16.dsa.items.ChatMessage(\x01\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bitems.proto\x12\tdsa.items\"B\n\x04Item\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0e\n\x06status\x18\x03 \x01(\t\x12\x10\n\x08location\x18\x04 \x01(\t\"\x1b\n\rItemIdRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x12\n\x10ListItemsRequest\"C\n\x11\x43reateItemRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\"O\n\x11UpdateItemRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0e\n\x06status\x18\x03 \x01(\t\x12\x10\n\x08location\x18\x04 \x01(\t\"%\n\x12\x44\x65leteItemResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"<\n\x0e\x41\x64\x64ItemsResult\x12\x15\n\rcreated_count\x18\x01 \x01(\x05\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05\"=\n\x0b\x43hatMessage\x12\x0e\n\x06sender\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\x12\x10\n\x08sequence\x18\x03 \x01(\x05\x32\x95\x03\n\x0bItemService\x12\x38\n\x0bGetItemById\x12\x18.dsa.items.ItemIdRequest\x1a\x0f.dsa.items.Item\x12;\n\tListItems\x12\x1b.dsa.items.ListItemsRequest\x1a\x0f.dsa.items.Item0\x01\x12\x45\n\x08\x41\x64\x64Items\x12\x1c.dsa.items.CreateItemRequest\x1a\x19.dsa.items.AddItemsResult(\x01\x12;\n\nUpdateItem\x12\x1c.dsa.items.UpdateItemRequest\x1a\x0f.dsa.items.Item\x12\x45\n\nDeleteItem\x12\x18.dsa.items.ItemIdRequest\x1a\x1d.dsa.items.DeleteItemResponse\x12\x44\n\x0e\x43hatAboutItems\x12\x16.dsa.items.ChatMessage\x1a\x16.dsa.items.ChatMessage(\x01\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,10 +39,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTITEMSREQUEST']._serialized_end=141
   _globals['_CREATEITEMREQUEST']._serialized_start=143
   _globals['_CREATEITEMREQUEST']._serialized_end=210
-  _globals['_ADDITEMSRESULT']._serialized_start=212
-  _globals['_ADDITEMSRESULT']._serialized_end=272
-  _globals['_CHATMESSAGE']._serialized_start=274
-  _globals['_CHATMESSAGE']._serialized_end=335
-  _globals['_ITEMSERVICE']._serialized_start=338
-  _globals['_ITEMSERVICE']._serialized_end=611
+  _globals['_UPDATEITEMREQUEST']._serialized_start=212
+  _globals['_UPDATEITEMREQUEST']._serialized_end=291
+  _globals['_DELETEITEMRESPONSE']._serialized_start=293
+  _globals['_DELETEITEMRESPONSE']._serialized_end=330
+  _globals['_ADDITEMSRESULT']._serialized_start=332
+  _globals['_ADDITEMSRESULT']._serialized_end=392
+  _globals['_CHATMESSAGE']._serialized_start=394
+  _globals['_CHATMESSAGE']._serialized_end=455
+  _globals['_ITEMSERVICE']._serialized_start=458
+  _globals['_ITEMSERVICE']._serialized_end=863
 # @@protoc_insertion_point(module_scope)
