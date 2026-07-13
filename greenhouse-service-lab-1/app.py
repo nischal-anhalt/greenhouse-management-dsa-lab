@@ -19,6 +19,36 @@ stub = items_pb2_grpc.ItemServiceStub(channel)
 def error_response(code, message, status):
     return jsonify({"error": {"code": code, "message": message}}), status
 
+@app.route('/items', methods=['GET'])
+def list_items():
+    def grpc_operation():
+        # Call the Server-Streaming ListItems method
+        response_stream = stub.ListItems(items_pb2.ListItemsRequest(), timeout=5.0)
+        
+        # Collect the streamed items into a list of dictionaries
+        items_list = []
+        for item in response_stream:
+            items_list.append({
+                "id": item.id,
+                "name": item.name,
+                "status": item.status,
+                "location": item.location
+            })
+        return items_list
+
+    # Execute the call through the Circuit Breaker
+    try:
+        items = protected_call(grpc_operation)
+    except CircuitBreakerError:
+        return error_response("backend_unavailable", "gRPC service is temporarily unavailable (Circuit Open).", 503)
+    except BackendUnavailable:
+        return error_response("backend_failure", "gRPC service did not respond successfully after retries.", 502)
+    except grpc.RpcError as e:
+        return error_response("internal_error", str(e), 500)
+
+    # Return the collected list as a JSON array
+    return jsonify(items), 200
+
 @app.route('/items', methods=['POST'])
 def create_item():
     data = request.get_json(silent=True)
