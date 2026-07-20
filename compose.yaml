@@ -25,8 +25,10 @@ services:
       MONGO_URI: mongodb://mongodb:27017
       MONGO_DB: itemsdb
       MONGO_COLLECTION: items
+      METRICS_PORT: "9103"
     ports:
       - "50052:50051"
+      - "9103:9103"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -68,5 +70,47 @@ services:
       retries: 5
       start_period: 10s
 
+  prometheus:
+    image: prom/prometheus:v3.11.2
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - rest-service
+      - grpc-service
+
+  grafana:
+    image: grafana/grafana-oss:13.0.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: dsa
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+  
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
 volumes:
   mongo-data:
+  grafana-data:

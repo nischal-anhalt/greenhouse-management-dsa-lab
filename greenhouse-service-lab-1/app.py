@@ -1,8 +1,10 @@
 import os
+import time
 import logging
 import grpc
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from pybreaker import CircuitBreakerError
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 import items_pb2
 import items_pb2_grpc
@@ -10,6 +12,48 @@ from reliability import BackendUnavailable, protected_call
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
+
+# 1. Define the Metrics
+HTTP_REQUESTS = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"],
+)
+
+HTTP_REQUEST_DURATION = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["method", "endpoint"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5),
+)
+
+# 2. Helper to avoid high-cardinality labels (e.g., tracking /items/<id> instead of /items/123)
+def route_pattern():
+    if request.url_rule is None:
+        return "unknown"
+    return request.url_rule.rule
+
+# 3. Start the timer before each request
+@app.before_request
+def metrics_start_timer():
+    request._metrics_start_time = time.perf_counter()
+
+# 4. Record the metrics after each request
+@app.after_request
+def metrics_record(response):
+    if request.endpoint != "metrics":
+        endpoint = route_pattern()
+        duration = time.perf_counter() - request._metrics_start_time
+        
+        HTTP_REQUEST_DURATION.labels(request.method, endpoint).observe(duration)
+        HTTP_REQUESTS.labels(request.method, endpoint, str(response.status_code)).inc()
+    return response
+
+# 5. Expose the metrics endpoint for Prometheus to scrape
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
 
 # Connect to the gRPC service using the Docker Compose service name
 GRPC_TARGET = os.getenv("GRPC_TARGET", "grpc-service:50051")
