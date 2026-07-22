@@ -1,0 +1,27 @@
+tls:
+  certificates:
+    - certFile: "/certs/gateway.crt"
+      keyFile: "/certs/gateway.key"
+
+http:
+  routers:
+    rest-api:
+      entryPoints:
+        - websecure
+      rule: "PathPrefix(`/api`)"
+      middlewares:
+        - strip-api
+      service: rest-service
+      tls: {}
+
+  middlewares:
+    strip-api:
+      stripPrefix:
+        prefixes:
+          - "/api"
+
+  services:
+    rest-service:
+      loadBalancer:
+        servers:
+          - url: "http://rest-service:5000"
