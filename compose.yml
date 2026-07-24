@@ -129,6 +129,17 @@ services:
     depends_on:
       - rest-service
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.1
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./security/keycloak/realm-export.json:/opt/keycloak/data/import/realm.json:ro
+    ports:
+      - "8088:8080"
+
 volumes:
   mongo-data:
   grafana-data:

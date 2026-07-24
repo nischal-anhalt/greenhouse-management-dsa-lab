@@ -1,0 +1,47 @@
+{
+  "realm": "dsa-lab",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "ROLE_USER" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "rest-api",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost/*"],
+      "webOrigins": ["*"],
+      "protocolMappers": [
+        {
+          "name": "aud-rest-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "rest-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "secret", "temporary": false }
+      ],
+      "realmRoles": ["ROLE_USER"]
+    }
+  ]
+}
