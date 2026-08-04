@@ -2,7 +2,9 @@ import os
 import time
 import logging
 import grpc
-from flask import Flask, jsonify, request, Response
+import jwt
+from jwt import PyJWKClient
+from flask import Flask, jsonify, request, Response, g
 from pybreaker import CircuitBreakerError
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
@@ -13,7 +15,67 @@ from reliability import BackendUnavailable, protected_call
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# 1. Define the Metrics
+CA_CERT = os.getenv("CA_CERT", "/certs/ca.crt")
+REST_CLIENT_CERT = os.getenv("REST_CLIENT_CERT", "/certs/rest-client.crt")
+REST_CLIENT_KEY = os.getenv("REST_CLIENT_KEY", "/certs/rest-client.key")
+GRPC_TARGET = os.getenv("GRPC_TARGET", "grpc-service:50051")
+
+def read_bytes(path: str) -> bytes:
+    with open(path, "rb") as file:
+        return file.read()
+
+# =========================== Auth validation logic =====================================================
+JWKS_URL = os.getenv("JWKS_URL", "http://localhost:8088/realms/dsa-lab/protocol/openid-connect/certs")
+JWT_ISSUER = os.getenv("JWT_ISSUER", "http://localhost:8088/realms/dsa-lab")
+JWT_AUDIENCE = os.getenv("JWT_AUDIENCE", "rest-api")
+
+_jwks_client = PyJWKClient(JWKS_URL)
+
+def extract_bearer_token(auth_header: str) -> str | None:
+    prefix = "Bearer "
+    if not auth_header or not auth_header.startswith(prefix):
+        return None
+    token = auth_header[len(prefix):].strip()
+    return token or None
+
+def verify_access_token(token: str) -> dict:
+    signing_key = _jwks_client.get_signing_key_from_jwt(token).key
+    return jwt.decode(
+        token,
+        signing_key,
+        algorithms=["RS256"],
+        audience=JWT_AUDIENCE,
+        issuer=JWT_ISSUER,
+    )
+
+# Start the timer before each request
+@app.before_request
+def metrics_start_timer():
+    request._metrics_start_time = time.perf_counter()
+
+@app.before_request
+def require_valid_token():
+    # Keep health and metrics endpoints public
+    if request.path in ("/health", "/metrics"):
+        return None
+        
+    token = extract_bearer_token(request.headers.get("Authorization", ""))
+    if token is None:
+        return error_response("missing_token", "Bearer token is required.", 401)
+        
+    try:
+        claims = verify_access_token(token)
+    except jwt.PyJWTError as exc:
+        return error_response("invalid_token", str(exc), 401)
+        
+    # Store user info in Flask's global 'g' object for the request lifecycle
+    g.user = claims.get("preferred_username", claims.get("sub"))
+    g.roles = claims.get("realm_access", {}).get("roles", [])
+    return None
+
+# =========================== Auth validation logic end=====================================================
+
+# Define the Metrics
 HTTP_REQUESTS = Counter(
     "http_requests_total",
     "Total HTTP requests",
@@ -27,29 +89,27 @@ HTTP_REQUEST_DURATION = Histogram(
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5),
 )
 
-# 2. Helper to avoid high-cardinality labels (e.g., tracking /items/<id> instead of /items/123)
+# Helper to avoid high-cardinality labels (e.g., tracking /items/<id> instead of /items/123)
 def route_pattern():
     if request.url_rule is None:
         return "unknown"
     return request.url_rule.rule
 
-# 3. Start the timer before each request
-@app.before_request
-def metrics_start_timer():
-    request._metrics_start_time = time.perf_counter()
-
-# 4. Record the metrics after each request
+# Record the metrics after each request
 @app.after_request
 def metrics_record(response):
     if request.endpoint != "metrics":
         endpoint = route_pattern()
-        duration = time.perf_counter() - request._metrics_start_time
+        
+        # Safely get the start time. If it wasn't set, fallback to current time.
+        start_time = getattr(request, '_metrics_start_time', time.perf_counter())
+        duration = time.perf_counter() - start_time
         
         HTTP_REQUEST_DURATION.labels(request.method, endpoint).observe(duration)
         HTTP_REQUESTS.labels(request.method, endpoint, str(response.status_code)).inc()
     return response
 
-# 5. Expose the metrics endpoint for Prometheus to scrape
+# Expose the metrics endpoint for Prometheus to scrape
 @app.get("/metrics")
 def metrics():
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
@@ -57,7 +117,13 @@ def metrics():
 
 # Connect to the gRPC service using the Docker Compose service name
 GRPC_TARGET = os.getenv("GRPC_TARGET", "grpc-service:50051")
-channel = grpc.insecure_channel(GRPC_TARGET)
+channel_credentials = grpc.ssl_channel_credentials(
+    root_certificates=read_bytes(CA_CERT),
+    certificate_chain=read_bytes(REST_CLIENT_CERT),
+    private_key=read_bytes(REST_CLIENT_KEY),
+)
+
+channel = grpc.secure_channel(GRPC_TARGET, channel_credentials)
 stub = items_pb2_grpc.ItemServiceStub(channel)
 
 def error_response(code, message, status):

@@ -6,3 +6,4 @@ grpcio-reflection==1.80.0
 pybreaker==1.4.1
 prometheus-client==0.25.0
 requests
+PyJWT[crypto]==2.12.1

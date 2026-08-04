@@ -1,5 +1,6 @@
 {
   "realm": "dsa-lab",
+  "sslRequired": "none",
   "enabled": true,
   "roles": {
     "realm": [
@@ -34,10 +35,11 @@
   "users": [
     {
       "username": "alice",
+      "firstName": "Alice",
+      "lastName": "Smith",
       "email": "alice@example.com",
       "emailVerified": true,
       "enabled": true,
-      "requiredActions": [],
       "credentials": [
         { "type": "password", "value": "secret", "temporary": false }
       ],

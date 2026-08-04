@@ -14,6 +14,13 @@ logging.basicConfig(level=logging.INFO)
 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "greenhouse-grpc-service")
 GRPC_PORT = int(os.getenv("GRPC_PORT", "50051"))
+CA_CERT = os.getenv("CA_CERT", "/certs/ca.crt")
+GRPC_SERVER_CERT = os.getenv("GRPC_SERVER_CERT", "/certs/grpc-service.crt")
+GRPC_SERVER_KEY = os.getenv("GRPC_SERVER_KEY", "/certs/grpc-service.key")
+
+def read_bytes(path: str) -> bytes:
+    with open(path, "rb") as file:
+        return file.read()
 
 # ========================== Metrics ==========================
 METRICS_PORT = int(os.getenv("METRICS_PORT", "9103"))
@@ -181,7 +188,14 @@ def serve():
     check_mongo_connection()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     items_pb2_grpc.add_ItemServiceServicer_to_server(ItemService(), server)
-    server.add_insecure_port(f"[::]:{GRPC_PORT}")
+    server_credentials = grpc.ssl_server_credentials(
+        private_key_certificate_chain_pairs=[
+            (read_bytes(GRPC_SERVER_KEY), read_bytes(GRPC_SERVER_CERT))
+        ],
+        root_certificates=read_bytes(CA_CERT),
+        require_client_auth=True,
+    )
+    server.add_secure_port(f"[::]:{GRPC_PORT}", server_credentials)
     server.start()
     logging.info("%s listening on port %s", SERVICE_NAME, GRPC_PORT)
 
