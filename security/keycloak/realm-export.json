@@ -44,6 +44,18 @@
         { "type": "password", "value": "secret", "temporary": false }
       ],
       "realmRoles": ["ROLE_USER"]
+    },
+    {
+      "username": "bob",
+      "firstName": "Bob",
+      "lastName": "Dance",
+      "email": "bob@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "secret", "temporary": false }
+      ],
+      "realmRoles": ["ROLE_GUEST"]
     }
   ]
 }

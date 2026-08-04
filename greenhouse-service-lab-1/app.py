@@ -161,6 +161,14 @@ def list_items():
 
 @app.route('/items', methods=['POST'])
 def create_item():
+    # --- Role-Based Access Control ---
+    if "ROLE_USER" not in getattr(g, "roles", []):
+        return error_response(
+            "forbidden", 
+            f"User {getattr(g, 'user', 'unknown')} lacks the required ROLE_USER permission.", 
+            403
+        )
+    # --------------------------------------
     data = request.get_json(silent=True)
     if not data or not isinstance(data, dict):
         return error_response("invalid_json", "Request body must be valid JSON.", 400)
