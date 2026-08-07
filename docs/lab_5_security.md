@@ -1,5 +1,7 @@
 # Smart Greenhouse Management System: Phase 5 (Security)
 
+**Source Code Repository:** [greenhouse-management-dsa-lab](https://github.com/nischal-anhalt/greenhouse-management-dsa-lab)
+
 ## 1. Executive Summary
 This document details Phase 5 of the Smart Greenhouse Management System, focusing on implementing a robust, multi-layered security architecture. Moving away from the assumption that internal networks are inherently safe, this phase introduces an HTTPS gateway, OpenID Connect (OIDC) for identity management, JSON Web Token (JWT) validation, and Mutual TLS (mTLS) for secure inter-service communication.
 

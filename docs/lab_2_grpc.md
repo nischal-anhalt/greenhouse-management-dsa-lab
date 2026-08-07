@@ -1,5 +1,7 @@
 # Smart Greenhouse Management System: Phase 2 (gRPC)
 
+**Source Code Repository:** [greenhouse-management-dsa-lab](https://github.com/nischal-anhalt/greenhouse-management-dsa-lab)
+
 ## 1. Executive Summary
 This document outlines the Phase 2 implementation of the Smart Greenhouse Management System, transitioning from a standard REST API to a high-performance **gRPC** (gRPC Remote Procedure Calls) architecture. By leveraging **Protocol Buffers** (protobuf) for strict payload typing and binary serialization, this iteration introduces robust service-to-service communication, including advanced streaming paradigms that are critical for real-time IoT greenhouse sensors and automated controllers.
 

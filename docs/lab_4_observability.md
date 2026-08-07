@@ -1,5 +1,7 @@
 # Smart Greenhouse Management System: Phase 4 (Observability & Monitoring)
 
+**Source Code Repository:** [greenhouse-management-dsa-lab](https://github.com/nischal-anhalt/greenhouse-management-dsa-lab)
+
 ## 1. Executive Summary
 This document outlines Phase 4 of the Smart Greenhouse Management System, focusing on system observability. By integrating Prometheus for time-series metrics and Grafana for visualization, this phase provides deep insights into the operational health, traffic patterns, and performance bottlenecks of the distributed architecture. Additionally, centralized logging was implemented to correlate performance metrics with application logs in a single pane of glass.
 

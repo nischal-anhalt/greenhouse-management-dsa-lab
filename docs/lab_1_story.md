@@ -1,5 +1,7 @@
 # Smart Greenhouse Management System
 
+**Source Code Repository:** [greenhouse-management-dsa-lab](https://github.com/nischal-anhalt/greenhouse-management-dsa-lab)
+
 User can monitor the state of the Greenhouse example, its climate, its soil state and plant states
 
 ## Entities

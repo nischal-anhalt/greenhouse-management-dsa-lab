@@ -1,5 +1,7 @@
 # Smart Greenhouse Management System: Phase 3 (Reliability & Integration)
 
+**Source Code Repository:** [greenhouse-management-dsa-lab](https://github.com/nischal-anhalt/greenhouse-management-dsa-lab)
+
 ## 1. Executive Summary
 This document outlines Phase 3 of the Smart Greenhouse Management System. In this phase, we established a complete end-to-end distributed architecture by connecting the public-facing REST API gateway to the internal gRPC service, backed by a MongoDB database. Crucially, this phase introduces **Fault Tolerance Mechanisms**, specifically **Retries** and a **Circuit Breaker**, to prevent cascading failures and ensure system resilience when internal components become unresponsive.
 
