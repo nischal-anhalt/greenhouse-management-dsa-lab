@@ -66,8 +66,8 @@ services:
       REST_CLIENT_CERT: /certs/rest-client.crt
       REST_CLIENT_KEY: /certs/rest-client.key
       GRPC_TARGET: grpc-service:50051
-    ports:
-      - "8085:5000"
+    # ports:
+    #   - "8085:5000"  #Traefik is setup to handle external traffic on port 8443
     depends_on:
       keycloak:
         condition: service_started

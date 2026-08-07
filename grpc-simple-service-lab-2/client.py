@@ -6,6 +6,21 @@ import items_pb2_grpc
 # Defaults to 50052 (the Docker host mapped port), but we can override it for local testing
 GRPC_TARGET = os.getenv("GRPC_TARGET", "localhost:50052")
 
+def read_bytes(path):
+    with open(path, "rb") as f:
+        return f.read()
+
+# Load the certs (adjust paths based on where you run the script)
+ca_cert = read_bytes("../security/certs/ca.crt")
+client_cert = read_bytes("../security/certs/rest-client.crt")
+client_key = read_bytes("../security/certs/rest-client.key")
+
+credentials = grpc.ssl_channel_credentials(
+    root_certificates=ca_cert,
+    certificate_chain=client_cert,
+    private_key=client_key
+)
+
 def new_items():
     # Yielding our greenhouse-specific CreateItemRequest messages
     yield items_pb2.CreateItemRequest(
@@ -27,32 +42,43 @@ def chat_messages():
 def run():
     print(f"Connecting to {GRPC_TARGET}...\n")
     
-    # Establish a connection to the server
-    with grpc.insecure_channel(GRPC_TARGET) as channel:
+    channel_options = (
+        ('grpc.ssl_target_name_override', 'grpc-service'),
+    )
+    
+    # Establish a secure connection with the options
+    with grpc.secure_channel(GRPC_TARGET, credentials, options=channel_options) as channel:
         stub = items_pb2_grpc.ItemServiceStub(channel)
 
-        print("1) Unary RPC worked example")
-        item = stub.GetItemById(items_pb2.ItemIdRequest(id=1))
-        print(item)
-
-        print("2) Server-streaming RPC worked example")
-        for item in stub.ListItems(items_pb2.ListItemsRequest()):
-            print(item)
-
-        print("3) Client-streaming RPC (AddItems)")
-        # We pass the generator function directly to the stub method
+        print("1) Client-streaming RPC (AddItems)")
+        # Run this first to populate the database
         summary = stub.AddItems(new_items())
         print(summary)
 
-        print("4) Bidirectional-streaming RPC (ChatAboutItems)")
-        # We pass a stream and iterate over the returning stream
+        print("2) Server-streaming RPC (ListItems)")
+        # Fetch the list and save the ID of the first item we see
+        valid_id = None
+        for item in stub.ListItems(items_pb2.ListItemsRequest()):
+            print(item)
+            if valid_id is None:
+                valid_id = item.id  # Capture the first valid UUID
+
+        print(f"\n3) Unary RPC (GetItemById)")
+        if valid_id:
+            print(f"Fetching dynamically extracted ID: {valid_id}")
+            single_item = stub.GetItemById(items_pb2.ItemIdRequest(id=valid_id))
+            print(single_item)
+        else:
+            print("No items found in the database to fetch.")
+
+        print("\n4) Bidirectional-streaming RPC (ChatAboutItems)")
         for response in stub.ChatAboutItems(chat_messages()):
             print(response)
 
         print("\n5) Expected error case worked example")
         try:
-            # Requesting an ID that doesn't exist to trigger our NOT_FOUND abort
-            stub.GetItemById(items_pb2.ItemIdRequest(id=9999))
+            # We still pass a string, but make it an obviously fake UUID
+            stub.GetItemById(items_pb2.ItemIdRequest(id="9999-invalid-id-9999"))
         except grpc.RpcError as exc:
             print("code:", exc.code())
             print("details:", exc.details())

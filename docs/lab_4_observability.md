@@ -28,6 +28,9 @@ A load-generation script (`generate_load.py`) was utilized to simulate a burst o
 3.  **Latency Impact:** Latency visibly degraded under active load. The REST p95 Latency panel climbed steadily (from ~0.090 seconds up to ~0.097 seconds), indicating that the system slows down slightly as it processes concurrent `POST` and `GET` requests.
 4.  **REST to gRPC Correlation:** When the REST service receives a `POST /items` request, it translates this into the internal `AddItems` gRPC method. The "gRPC Calls" panel clearly displayed a corresponding spike for `{method="AddItems", status="OK"}` synchronized with the REST POST traffic.
 
+![Grafana Metrics](./images/image1.png)
+![Grafana Metrics Contd](./images/image2.png)
+
 ## 5. Curiosity Extension: Centralized Logging
 
 *   **Implementation:** Extended the observability stack by deploying **Loki** (log aggregation) and **Promtail** (log shipping agent).
